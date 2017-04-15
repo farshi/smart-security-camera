@@ -3,7 +3,7 @@ exports.handler = (event, context, callback) => {
   var aws = require('aws-sdk');
   var nodemailer = require('nodemailer');
   var sesTransport = require('nodemailer-ses-transport');
-  var ses = new aws.SES({apiVersion: '2010-12-01', region: 'eu-west-1'});
+  var ses = new aws.SES({apiVersion: '2010-12-01', region: 'us-west-2'});
   var s3 = new aws.S3();
 
   // Set up ses as tranport for email
@@ -16,8 +16,8 @@ exports.handler = (event, context, callback) => {
 
   // Set up email parameters
   var mailOptions = mailOptions = {
-      from: '"Smart Security Camera" <markwest1972@gmail.com>',
-      to: 'markwest1972@gmail.com',
+      from: '"Smart Security Camera" <julian.pittas@gmail.com>',
+      to: 'julian.pittas@gmail.com',
       subject: '⚠️ Error processing image ⚠️',
       text: errorMessage,
       html: '<pre>'+errorMessage+'</pre>'

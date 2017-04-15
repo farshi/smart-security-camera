@@ -3,7 +3,7 @@ exports.handler = (event, context, callback) => {
   var aws = require('aws-sdk');
   var nodemailer = require('nodemailer');
   var sesTransport = require('nodemailer-ses-transport');
-  var ses = new aws.SES({apiVersion: '2010-12-01', region: 'eu-west-1'});
+  var ses = new aws.SES({apiVersion: '2010-12-01', region: 'us-west-2'});
   var s3 = new aws.S3();
 
   // Set up ses as tranport for email
@@ -17,12 +17,12 @@ exports.handler = (event, context, callback) => {
   var labels = event.Labels;
 
   // Add timestamp to file name
-  var localFile = filename.replace('upload/', '');
+  var localFile = filename.replace('camera-upload/', '');
 
   // Set up email parameters
   var mailOptions = mailOptions = {
-      from: '"Smart Security Camera" <markwest1972@gmail.com>',
-      to: 'markwest1972@gmail.com',
+      from: '"Smart Security Camera" <julian.pittas@gmail.com>',
+      to: 'julian.pittas@gmail.com',
       subject: '⏰ Alarm Event detected! ⏰',
       text: JSON.stringify(labels),
       html: '<pre>'+JSON.stringify(labels, null, 2)+'</pre>',
@@ -30,7 +30,7 @@ exports.handler = (event, context, callback) => {
 
         {
             filename: localFile,
-            path: 'https://s3-eu-west-1.amazonaws.com/'+ bucket + '/'+ filename
+            path: 'https://s3-us-west-2.amazonaws.com/'+ bucket + '/'+ filename
         }
       ]
   }

@@ -18,9 +18,9 @@ exports.handler = (event, context, callback) => {
     
     // In which subdirectory shall the file be saved?
     if (alert == 'true'){
-        newFilename = event.key.replace('upload/', 'archive/alerts/');          // All Alerts
+        newFilename = event.key.replace('camera-upload/', 'camera-archive/alerts/');          // All Alerts
     }else{
-        newFilename = event.key.replace('upload/', 'archive/falsepositives/');  // False positives
+        newFilename = event.key.replace('camera-upload/', 'camera-archive/falsepositives/');  // False positives
     }
     
     // Parameters for copy function
