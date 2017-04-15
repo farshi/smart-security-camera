@@ -12,16 +12,25 @@ exports.handler = (event, context, callback) => {
         // List should be extended with all "trigger" labels from Rekognition
         for (key in labels) {
           if (labels.hasOwnProperty(key)) {
-            if (labels[key].Name.indexOf('Human') > -1) callback(null, Object.assign({"Alert": "true"}, event));
-            if (labels[key].Name.indexOf('People') > -1) callback(null, Object.assign({"Alert": "true"}, event));
-            if (labels[key].Name.indexOf('Person') > -1) callback(null, Object.assign({"Alert": "true"}, event));
-            if (labels[key].Name.indexOf('Male') > -1) callback(null, Object.assign({"Alert": "true"}, event));
-            if (labels[key].Name.indexOf('Female') > -1) callback(null, Object.assign({"Alert": "true"}, event));
-            if (labels[key].Name.indexOf('Apparel') > -1) callback(null, Object.assign({"Alert": "true"}, event));
-            if (labels[key].Name.indexOf('Clothing') > -1) callback(null, Object.assign({"Alert": "true"}, event));
-            if (labels[key].Name.indexOf('Selfie') > -1) callback(null, Object.assign({"Alert": "true"}, event));
-            if (labels[key].Name.indexOf('Costume') > -1) callback(null, Object.assign({"Alert": "true"}, event));
-            if (labels[key].Name.indexOf('Portrait') > -1) callback(null, Object.assign({"Alert": "true"}, event));
+              var triggers = [
+                  'Human',
+                  'People',
+                  'Person',
+                  'Male',
+                  'Female',
+                  'Apparel',
+                  'Clothing',
+                  'Selfie',
+                  'Costume',
+                  'Portrait'
+              ];
+
+              for(var i=0; i<triggers.length; i++) {
+                  if (labels[key].Name.indexOf(triggers[i]) > -1) {
+                    callback(null, Object.assign({"Alert": "true"}, event));
+                    break;
+                  }
+              }
           }
         }
     
