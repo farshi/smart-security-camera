@@ -16,7 +16,7 @@ var path = require('path');
 var fs = require('fs');
 
 // Load configration file
-AWS.config.loadFromPath('/usr/local/bin/scripts/s3-upload/config.json');
+AWS.config.loadFromPath(process.cwd() + '/config.json');
 
 // Create S3 service object
 s3 = new AWS.S3({apiVersion: '2006-03-01'});
@@ -25,15 +25,17 @@ s3 = new AWS.S3({apiVersion: '2006-03-01'});
 var file = process.argv[3];
 var fileStream = fs.createReadStream(file);
 fileStream.on('error', function(err) {
-  
     console.log('File Error', err);
 });
 
 // Populate upload parameters
 var uploadParams = {Bucket: process.argv[2], Key: '', Body: ''};
-uploadParams.Key = 'upload/'+path.basename(file);
+uploadParams.Key = 'camera-upload/'+path.basename(file);
 uploadParams.Body = fileStream;
 uploadParams.ACL = 'public-read';
+
+//console.log("Upload parameters:");
+//console.log(uploadParams);
 
 // call S3 to retrieve upload file to specified bucket
 s3.upload (uploadParams, function (err, data) {
