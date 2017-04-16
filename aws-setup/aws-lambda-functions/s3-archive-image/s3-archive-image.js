@@ -9,7 +9,7 @@ exports.handler = (event, context, callback) => {
     var s3 = new AWS.S3({apiVersion: '2006-03-01'});
     
     // Retrieve parameters from export handler event
-    var bucket = event.bucket;
+    var bucket = process.env.bucketname;
     var oldFilename = event.key;
         var alert = event.Alert;
 
@@ -18,9 +18,9 @@ exports.handler = (event, context, callback) => {
     
     // In which subdirectory shall the file be saved?
     if (alert == 'true'){
-        newFilename = event.key.replace('camera-upload/', 'camera-archive/alerts/');          // All Alerts
+        newFilename = event.key.replace(process.env.bucketuploadpath+'/', process.env.bucketarchivepath+'/alerts/');          // All Alerts
     }else{
-        newFilename = event.key.replace('camera-upload/', 'camera-archive/falsepositives/');  // False positives
+        newFilename = event.key.replace(process.env.bucketuploadpath+'/', process.env.bucketarchivepath+'/falsepositives/');  // False positives
     }
     
     // Parameters for copy function

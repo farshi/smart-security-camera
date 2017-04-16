@@ -12,7 +12,7 @@ exports.handler = (event, context, callback) => {
     
     // Setup Rekognition client
     var AWS = require('aws-sdk');
-    var rekognition = new AWS.Rekognition({region: 'us-west-2'});
+    var rekognition = new AWS.Rekognition();
 
     // Configure Rekognition client parameters, including image name 
     // and location, maximum amount of results, and minimum confidence level

@@ -85,6 +85,10 @@ functions:
     memorySize: 256
   S3ArchiveImage:
     handler: s3-archive-image/s3-archive-image.handler
+    environment:
+      bucketname: ${file(./global-config.json):bucket.name}
+      bucketuploadpath: ${file(./global-config.json):bucket.uploadpath}
+      bucketarchivepath: ${file(./global-config.json):bucket.archivepath}
     package:
       exclude:
         - rekognition-image-assessment/**
