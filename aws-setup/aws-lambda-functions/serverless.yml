@@ -1,0 +1,330 @@
+
+service: raspberry-pi-camera
+
+provider:
+  name: aws
+  runtime: nodejs6.10
+  region: us-west-2
+
+  iamRoleStatements:
+   - Effect: "Allow"
+     Action:
+       - "s3:Get*"
+       - "s3:List*"
+       - "s3:PutBucketNotification"
+       - "s3:PutObject"
+       - "s3:DeleteObject"
+       - "lambda:InvokeFunction"
+       - "lambda:AddPermission"
+       - "ses:*"
+       - "logs:CreateLogGroup"
+       - "logs:CreateLogStream"
+       - "logs:PutLogEvents"
+       - "rekognition:CompareFaces"
+       - "rekognition:DetectFaces"
+       - "rekognition:DetectLabels"
+       - "rekognition:ListCollections"
+       - "rekognition:ListFaces"
+       - "rekognition:SearchFaces"
+       - "rekognition:SearchFacesByImage"
+       - "states:StartExecution"
+     Resource: "*"
+
+custom: ${file(./global-config.json)}
+
+plugins:
+  - serverless-external-s3-event
+  - serverless-resources-env
+
+package:
+  individually: true
+  exclude:
+    - .git
+    - .git/**
+    - .gitignore
+    - .npmignore
+    - .idea
+    - readme.md
+    - event.json
+    - .serverless
+    - config.yml
+
+functions:
+  RekognitionImageAssessment:
+    handler: rekognition-image-assessment/rekognition-image-assessment.handler
+    package:
+      exclude:
+      - evaluate-rekognition-labels/**
+      - nodemailer-error-handler/**
+      - nodemailer-send-notification/**
+      - s3-archive-image/**
+      - s3-trigger-image-processing/**
+  EvaluateRekognitionLabels:
+    handler: evaluate-rekognition-labels/evaluate-rekognition-labels.handler
+    package:
+      exclude:
+        - rekognition-image-assessment/**
+        - nodemailer-error-handler/**
+        - nodemailer-send-notification/**
+        - s3-archive-image/**
+        - s3-trigger-image-processing/**
+  NodemailerSendNotification:
+    handler: nodemailer-send-notification/nodemailer-send-notification.handler
+    environment:
+      useremailaddress: ${file(./global-config.json):user.emailaddress}
+      bucketname: ${file(./global-config.json):bucket.name}
+      bucketregion: ${file(./global-config.json):bucket.region}
+      bucketuploadpath: ${file(./global-config.json):bucket.uploadpath}
+    package:
+      exclude:
+        - rekognition-image-assessment/**
+        - evaluate-rekognition-labels/**
+        - nodemailer-error-handler/**
+        - s3-archive-image/**
+        - s3-trigger-image-processing/**
+    memorySize: 256
+  S3ArchiveImage:
+    handler: s3-archive-image/s3-archive-image.handler
+    package:
+      exclude:
+        - rekognition-image-assessment/**
+        - evaluate-rekognition-labels/**
+        - nodemailer-error-handler/**
+        - nodemailer-send-notification/**
+        - s3-trigger-image-processing/**
+  NodemailerErrorHandler:
+    handler: nodemailer-error-handler/nodemailer-error-handler.handler
+    environment: 
+      useremailaddress: ${file(./global-config.json):user.emailaddress}
+    package:
+      exclude:
+        - rekognition-image-assessment/**
+        - evaluate-rekognition-labels/**
+        - nodemailer-send-notification/**
+        - s3-archive-image/**
+        - s3-trigger-image-processing/**
+
+
+  S3TriggerImageProcessing:
+    handler: s3-trigger-image-processing/s3-trigger-image-processing.handler
+    custom:
+      env-resources:
+        - ImageRecognitionStateMachine
+    package:
+      exclude:
+        - rekognition-image-assessment/**
+        - evaluate-rekognition-labels/**
+        - nodemailer-send-notification/**
+        - s3-archive-image/**
+        - nodemailer-error-handler/**
+
+resources:
+  Resources:
+    S3Bucket:
+      DependsOn: S3TriggerImageProcessingFunctionPermission
+      Type: AWS::S3::Bucket
+      Properties:
+        AccessControl: PublicRead
+        BucketName: ${self:custom.bucket.name}
+        NotificationConfiguration:
+          LambdaConfigurations:
+            - Event: "s3:ObjectCreated:*"
+              Function: "arn:aws:lambda:${self:custom.aws.region}:${self:custom.aws.accountnumber}:function:${self:custom.function-prefix}S3TriggerImageProcessing"
+              Filter:
+                S3Key:
+                  Rules:
+                    -
+                      Name: suffix
+                      Value: .jpg
+                    -
+                      Name: prefix
+                      Value: ${self:custom.bucket.uploadpath}/
+    S3TriggerImageProcessingFunctionPermission:
+      DependsOn: S3TriggerImageProcessingLambdaFunction
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: "arn:aws:lambda:${self:custom.aws.region}:${self:custom.aws.accountnumber}:function:${self:custom.function-prefix}S3TriggerImageProcessing"
+        Action: "lambda:InvokeFunction"
+        Principal: "s3.amazonaws.com"
+        SourceArn: "arn:aws:s3:::${self:custom.bucket.name}"
+    S3BucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: ${self:custom.bucket.name}
+        PolicyDocument: 
+          Statement: 
+            - 
+              Sid: "AllowPublicRead"
+              Action: 
+                - "s3:GetObject"
+              Effect: "Allow"
+              Resource: "arn:aws:s3:::${self:custom.bucket.name}/*"
+              Principal: "*"
+    CameraGroup:
+      Type: AWS::IAM::Group
+      Properties:
+        GroupName: "Raspberry-Pi-Cameras-${self:custom.aws.region}"
+    SecurityCameraBucketPolicy:
+      Type: AWS::IAM::Policy
+      Properties:
+        Groups:
+          - {"Ref": "CameraGroup"}
+        PolicyName: security-camera-bucket-policy
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - 
+              Effect: "Allow"
+              Action:
+                - "s3:Get*"
+                - "s3:List*"
+                - "s3:Put*"
+              Resource: "arn:aws:s3:::${self:custom.bucket.name}/*"
+    SESSendingPolicy:
+      Type: AWS::IAM::Policy
+      Properties:
+        Groups:
+          - {"Ref": "CameraGroup"}
+        PolicyName: ses-send-email-policy
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - 
+              Effect: "Allow"
+              Action:
+                - "ses:SendRawEmail"
+              Resource: "*"
+    StateExecutionPolicy:
+      Type: AWS::IAM::Policy
+      Properties:
+        PolicyName: "${self:service}-StateExecutionPolicy-${self:custom.aws.region}"
+        PolicyDocument: 
+          Version: "2012-10-17"
+          Statement: 
+            - 
+              Effect: "Allow"
+              Action: 
+                - "lambda:InvokeFunction"
+              Resource: "*"
+        Roles: 
+          - 
+            Ref: "StateExecutionRole"
+    StateExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: "${self:service}-StateExecutionRole-${self:custom.aws.region}"
+        AssumeRolePolicyDocument: 
+          Version: "2012-10-17"
+          Statement: 
+            - 
+              Effect: "Allow"
+              Principal: 
+                Service: 
+                  - "states.${self:custom.aws.region}.amazonaws.com"
+              Action: 
+                - "sts:AssumeRole"
+        Path: "/"
+    ImageRecognitionStateMachine:
+      Type: AWS::StepFunctions::StateMachine
+      Properties:
+        DefinitionString: |-
+          {
+              "Comment": "Process incoming image files to find out if an email warning is required",
+              "StartAt": "rekognition-image-assessment",
+              "States": {
+
+                  "nodemailer-error-handler": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:lambda:${self:custom.aws.region}:${self:custom.aws.accountnumber}:function:${self:custom.function-prefix}NodemailerErrorHandler",
+                      "End": true
+                  },
+                  "rekognition-image-assessment": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:lambda:${self:custom.aws.region}:${self:custom.aws.accountnumber}:function:${self:custom.function-prefix}RekognitionImageAssessment",
+                      "Catch": [{
+                          "ErrorEquals": ["States.ALL"],
+                          "Next": "nodemailer-error-handler"
+                      }],
+                      "Next": "evaluate-rekognition-labels"
+                  },
+                  "evaluate-rekognition-labels": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:lambda:${self:custom.aws.region}:${self:custom.aws.accountnumber}:function:${self:custom.function-prefix}EvaluateRekognitionLabels",
+                      "Catch": [{
+                          "ErrorEquals": ["States.ALL"],
+                          "Next": "nodemailer-error-handler"
+                      }],
+                      "Next": "make-alert-decision"
+                  },
+
+                  "make-alert-decision": {
+                      "Type": "Choice",
+                      "Choices": [{
+                              "Variable": "$.Alert",
+                              "StringEquals": "true",
+                              "Next": "nodemailer-send-notification"
+                          },
+                          {
+                              "Variable": "$.Alert",
+                              "StringEquals": "false",
+                              "Next": "s3-archive-image"
+                          }
+                      ],
+                      "Default": "s3-archive-image"
+                  },
+
+                  "nodemailer-send-notification": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:lambda:${self:custom.aws.region}:${self:custom.aws.accountnumber}:function:${self:custom.function-prefix}NodemailerSendNotification",
+                      "Catch": [{
+                          "ErrorEquals": ["States.ALL"],
+                          "Next": "nodemailer-error-handler"
+                      }],
+                      "Next": "s3-archive-image"
+                  },
+                  "s3-archive-image": {
+                      "Type": "Task",
+                      "Resource": "arn:aws:lambda:${self:custom.aws.region}:${self:custom.aws.accountnumber}:function:${self:custom.function-prefix}S3ArchiveImage",
+                      "Catch": [{
+                          "ErrorEquals": ["States.ALL"],
+                          "Next": "nodemailer-error-handler"
+                      }],
+                      "End": true
+                  }
+              }
+          }
+        RoleArn: {"Fn::GetAtt" : ["StateExecutionRole", "Arn"] }
+  Outputs:
+    StateMachineARN:
+      Description: The ARN of the Step functinon State Machine created
+      Value: {"Ref" : "ImageRecognitionStateMachine" }
+
+
+
+#    The following are a few example events you can configure
+#    NOTE: Please make sure to change your handler code to work with those events
+#    Check the event documentation for details
+#    events:
+#      - http:
+#          path: users/create
+#          method: get
+#      - s3: ${env:BUCKET}
+#      - schedule: rate(10 minutes)
+#      - sns: greeter-topic
+#      - stream: arn:aws:dynamodb:region:XXXXXX:table/foo/stream/1970-01-01T00:00:00.000
+#      - alexaSkill
+#      - iot:
+#          sql: "SELECT * FROM 'some_topic'"
+#      - cloudwatchEvent:
+#          event:
+#            source:
+#              - "aws.ec2"
+#            detail-type:
+#              - "EC2 Instance State-change Notification"
+#            detail:
+#              state:
+#                - pending
+
+#    Define function environment variables here
+#    environment:
+#      variable2: value2

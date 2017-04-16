@@ -1,0 +1,23 @@
+{
+    "aws": {
+        "accountnumber": "111122223333",
+        "region": "${opt:region, self:provider.region}"
+    },
+    "bucket": {
+        "name": "youtbucketname",
+        "region": "${self:custom.aws.region}",
+        "archivepath": "camera-archive",
+        "uploadpath": "camera-upload"
+    },
+    "user": {
+        "emailaddress": "youremailaddress@emailprovider.com",
+        "name": "Your name"
+    },
+    "pi": {
+        "motionconfigpath": "/home/pi/.motion",
+        "motionsavepath": "/home/pi/Documents/motion",
+        "s3uploadscriptspath": "/home/pi/s3-upload"
+    },
+    "stage": "${opt:stage, self:provider.stage}",
+    "function-prefix": "${self:service}-${self:custom.stage}-"
+}

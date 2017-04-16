@@ -1,0 +1,15 @@
+{
+  "name": "security_camera_pi",
+  "version": "1.0.0",
+  "description": "Security camera serverless files",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Julian Pittas",
+  "license": "ISC",
+  "dependencies": {
+    "serverless-external-s3-event": "^1.0.4",
+    "serverless-resources-env": "^0.3.0"
+  }
+}
