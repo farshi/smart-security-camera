@@ -16,7 +16,7 @@ var path = require('path');
 var fs = require('fs');
 
 //Load the global configuration file
-var globalConfig = require(__dirname + "/globalconfig.json");
+var globalConfig = require(__dirname + "/global-config.json");
 
 // Load configration file
 AWS.config.loadFromPath(__dirname + '/config.json');
